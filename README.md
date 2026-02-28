@@ -30,7 +30,7 @@ La aplicación web está disponible en GitHub Pages:
 
 ```bash
 # Clonar repositorio
-git clone https://github.com/[TU-USUARIO]/bet-model-soccer.git
+git clone https://github.com/MISAGATECH/bet-model-soccer.git
 cd bet-model-soccer
 
 # Crear entorno virtual
