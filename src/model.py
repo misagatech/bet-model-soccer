@@ -58,6 +58,72 @@ class PoissonModel:
         """
         return 1 - self.prob_over_2_5()
     
+    def prob_over_1_5(self):
+        """
+        Calcula probabilidad de Over 1.5 goles
+        
+        Returns:
+            float: probabilidad entre 0 y 1
+        """
+        prob_total = 0
+        
+        for home_goals in range(0, 11):
+            for away_goals in range(0, 11):
+                total_goals = home_goals + away_goals
+                if total_goals > 1.5:
+                    prob_home = self.poisson_prob(self.xg_home, home_goals)
+                    prob_away = self.poisson_prob(self.xg_away, away_goals)
+                    prob_total += prob_home * prob_away
+        
+        return min(prob_total, 0.99)
+    
+    def prob_under_1_5(self):
+        """
+        Calcula probabilidad de Under 1.5 goles
+        """
+        return 1 - self.prob_over_1_5()
+    
+    def prob_over_3_5(self):
+        """
+        Calcula probabilidad de Over 3.5 goles
+        """
+        prob_total = 0
+        
+        for home_goals in range(0, 11):
+            for away_goals in range(0, 11):
+                total_goals = home_goals + away_goals
+                if total_goals > 3.5:
+                    prob_home = self.poisson_prob(self.xg_home, home_goals)
+                    prob_away = self.poisson_prob(self.xg_away, away_goals)
+                    prob_total += prob_home * prob_away
+        
+        return min(prob_total, 0.99)
+    
+    def prob_under_3_5(self):
+        """
+        Calcula probabilidad de Under 3.5 goles
+        """
+        return 1 - self.prob_over_3_5()
+    
+    def prob_exact_goals(self, goals):
+        """
+        Calcula probabilidad de un total exacto de goles
+        
+        Args:
+            goals (int): número exacto de goles
+            
+        Returns:
+            float: probabilidad
+        """
+        prob = 0
+        for home_goals in range(0, goals + 1):
+            away_goals = goals - home_goals
+            if away_goals >= 0:
+                prob_home = self.poisson_prob(self.xg_home, home_goals)
+                prob_away = self.poisson_prob(self.xg_away, away_goals)
+                prob += prob_home * prob_away
+        return prob
+    
     def fair_odds(self, probability):
         """
         Calcula cuota justa basada en probabilidad
@@ -125,6 +191,10 @@ def test_model():
     prob_over = model.prob_over_2_5()
     print(f"Probabilidad Over 2.5: {prob_over:.2%}")
     print(f"Cuota justa: {model.fair_odds(prob_over):.2f}")
+    
+    # Probar nuevas funciones
+    print(f"Probabilidad Over 1.5: {model.prob_over_1_5():.2%}")
+    print(f"Probabilidad Over 3.5: {model.prob_over_3_5():.2%}")
 
 
 if __name__ == "__main__":
