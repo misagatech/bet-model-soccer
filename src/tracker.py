@@ -7,6 +7,7 @@ class BetTracker:
     """
     Gestiona el registro y estadísticas de apuestas
     Guarda en CSV y calcula métricas de rendimiento
+    Versión: 2.0 - Con tipos de mercado
     """
     
     def __init__(self, csv_file='bets.csv'):
@@ -28,6 +29,7 @@ class BetTracker:
                     'fecha',
                     'xg_local',
                     'xg_visitante',
+                    'mercado',
                     'cuota',
                     'probabilidad',
                     'value',
@@ -37,14 +39,14 @@ class BetTracker:
                 ])
             print(f"✅ Archivo {self.csv_file} creado")
     
-    def register_bet(self, xg_home, xg_away, odds, probability, 
-                     value_percentage, stake, result):
+    def register_bet(self, xg_home, xg_away, mercado, odds, probability, value_percentage, stake, result):
         """
-        Registra una nueva apuesta
+        Registra una nueva apuesta (incluye tipo de mercado)
         
         Args:
             xg_home (float): xG local
             xg_away (float): xG visitante
+            mercado (str): tipo de mercado (Over 2.5, BTTS, etc.)
             odds (float): cuota apostada
             probability (float): probabilidad calculada
             value_percentage (float): % de value
@@ -65,6 +67,7 @@ class BetTracker:
             datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
             round(xg_home, 2),
             round(xg_away, 2),
+            mercado,
             round(odds, 2),
             round(probability, 2),
             round(value_percentage, 2),
@@ -78,15 +81,12 @@ class BetTracker:
             writer = csv.writer(f)
             writer.writerow(bet_data)
         
-        print(f"✅ Apuesta registrada: {'🎯 GANADA' if profit > 0 else '❌ PERDIDA'} (Profit: {profit:+.2f})")
+        print(f"✅ Apuesta {mercado} registrada: {'🎯 GANADA' if profit > 0 else '❌ PERDIDA'} (Profit: {profit:+.2f})")
         return profit
     
     def get_statistics(self):
         """
         Calcula estadísticas de todas las apuestas
-        
-        Returns:
-            dict: estadísticas completas
         """
         bets = self.load_bets()
         
@@ -103,7 +103,7 @@ class BetTracker:
                 'avg_odds': 0
             }
         
-        # Calcular métricas
+        # Calcular métricas generales
         wins = sum(1 for b in bets if b['resultado'] == 'win')
         losses = len(bets) - wins
         total_staked = sum(b['stake'] for b in bets)
@@ -115,6 +115,21 @@ class BetTracker:
         avg_value = sum(b['value'] for b in bets) / len(bets)
         avg_odds = sum(b['cuota'] for b in bets) / len(bets)
         
+        # Estadísticas por mercado
+        markets = {}
+        for bet in bets:
+            market = bet['mercado']
+            if market not in markets:
+                markets[market] = {'wins': 0, 'losses': 0, 'profit': 0, 'stake': 0}
+            
+            if bet['resultado'] == 'win':
+                markets[market]['wins'] += 1
+            else:
+                markets[market]['losses'] += 1
+            
+            markets[market]['profit'] += bet['profit']
+            markets[market]['stake'] += bet['stake']
+        
         return {
             'total_bets': len(bets),
             'wins': wins,
@@ -124,7 +139,8 @@ class BetTracker:
             'total_profit': total_profit,
             'roi': roi,
             'avg_value': avg_value,
-            'avg_odds': avg_odds
+            'avg_odds': avg_odds,
+            'markets': markets
         }
     
     def load_bets(self):
@@ -154,9 +170,9 @@ class BetTracker:
         """Muestra estadísticas en formato legible"""
         stats = self.get_statistics()
         
-        print("\n" + "="*50)
+        print("\n" + "="*60)
         print("📊 ESTADÍSTICAS DE APUESTAS")
-        print("="*50)
+        print("="*60)
         
         if stats['total_bets'] == 0:
             print("No hay apuestas registradas todavía")
@@ -171,7 +187,20 @@ class BetTracker:
         print(f"🎯 ROI:               {stats['roi']:+.2f}%")
         print(f"📊 Value promedio:    {stats['avg_value']:+.2f}%")
         print(f"🎲 Cuota promedio:    {stats['avg_odds']:.2f}")
-        print("="*50)
+        
+        # Mostrar estadísticas por mercado
+        if stats['markets']:
+            print("\n" + "-"*60)
+            print("📈 RENDIMIENTO POR MERCADO")
+            print("-"*60)
+            for market, data in stats['markets'].items():
+                total = data['wins'] + data['losses']
+                winrate_market = (data['wins'] / total * 100) if total > 0 else 0
+                roi_market = (data['profit'] / data['stake'] * 100) if data['stake'] > 0 else 0
+                print(f"{market}:")
+                print(f"   📊 {total} apuestas | Winrate: {winrate_market:.1f}% | ROI: {roi_market:+.1f}% | Profit: {data['profit']:+.2f}")
+        
+        print("="*60)
 
 
 # Prueba rápida
