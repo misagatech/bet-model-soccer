@@ -23,9 +23,8 @@ Sistema profesional para detectar **value bets** en fútbol usando **modelo Pois
 
 La aplicación web está disponible en GitHub Pages:
 
-🔗 **https://[MISAGATECH].github.io/bet-model-soccer/web/**
+🔗 **https://MISAGATECH.github.io/bet-model-soccer/web/**
 
-*(Reemplaza [TU-USUARIO] con tu nombre de usuario de GitHub)*
 
 ## 💻 Instalación y uso local
 
