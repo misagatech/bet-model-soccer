@@ -1,7 +1,7 @@
 """
 SISTEMA DE VALUE BETTING CON MODELO POISSON
 Basado en xG (Expected Goals)
-Versión: 1.0
+Versión: 2.0 - Análisis Múltiples Mercados
 """
 
 from src.model import PoissonModel
@@ -60,9 +60,18 @@ def get_result_input():
             return result
         print("❌ Por favor ingresa 'win' o 'loss'")
 
+def format_value(value_pct):
+    """Formatea el valor con emojis según el porcentaje"""
+    if value_pct > 5:
+        return f"✅ {value_pct:+.1f}%"
+    elif value_pct < -5:
+        return f"❌ {value_pct:+.1f}%"
+    else:
+        return f"⚖️ {value_pct:+.1f}%"
+
 def analyze_bet(xg_home, xg_away, market_odds):
     """
-    Analiza una apuesta y muestra la información
+    Analiza una apuesta y muestra la información para múltiples mercados
     
     Returns:
         tuple: (probabilidad, value_percentage, tiene_value)
@@ -70,30 +79,80 @@ def analyze_bet(xg_home, xg_away, market_odds):
     # Crear modelo
     model = PoissonModel(xg_home, xg_away)
     
-    # Calcular probabilidad Over 2.5
-    probability = model.prob_over_2_5()
+    # Calcular probabilidades para diferentes mercados
+    prob_over25 = model.prob_over_2_5()
+    prob_under25 = model.prob_under_2_5()
+    prob_over15 = model.prob_over_1_5()
+    prob_under15 = model.prob_under_1_5()
+    prob_over35 = model.prob_over_3_5()
+    prob_under35 = model.prob_under_3_5()
     
-    # Detectar value
-    value_info = model.detect_value(market_odds, probability)
+    # Calcular cuotas justas
+    fair_over25 = 1/prob_over25 if prob_over25 > 0 else 0
+    fair_under25 = 1/prob_under25 if prob_under25 > 0 else 0
+    fair_over15 = 1/prob_over15 if prob_over15 > 0 else 0
+    fair_under15 = 1/prob_under15 if prob_under15 > 0 else 0
+    fair_over35 = 1/prob_over35 if prob_over35 > 0 else 0
+    fair_under35 = 1/prob_under35 if prob_under35 > 0 else 0
     
-    # Mostrar análisis
-    print("\n📊 ANÁLISIS DEL PARTIDO")
-    print("-"*40)
-    print(f"⚽ xG Local:      {xg_home:.2f}")
-    print(f"⚽ xG Visitante:  {xg_away:.2f}")
-    print(f"📈 Probabilidad:  {value_info['probability']:.2f}%")
-    print(f"🎲 Cuota justa:   {value_info['fair_odds']:.2f}")
-    print(f"💰 Cuota mercado: {market_odds:.2f}")
-    print(f"📊 Value:         {value_info['value_percentage']:+.2f}%")
+    # Calcular value para Over 2.5 (asumiendo que la cuota ingresada es para este mercado)
+    value_over25 = (market_odds / fair_over25 - 1) * 100
     
-    if value_info['has_value']:
-        print("✅ ¡VALUE DETECTADO! Esta apuesta tiene valor positivo")
+    # Mostrar análisis COMPLETO
+    print("\n" + "="*70)
+    print("📊 ANÁLISIS COMPLETO DE MERCADOS")
+    print("="*70)
+    print(f"⚽ xG Local: {xg_home:.2f} | xG Visitante: {xg_away:.2f} | Total: {xg_home + xg_away:.2f}")
+    print("-"*70)
+    
+    # Tabla de mercados
+    print(f"{'MERCADO':<15} {'PROBABILIDAD':<15} {'CUOTA JUSTA':<15} {'VALUE':<20}")
+    print("-"*70)
+    
+    print(f"{'Over 2.5':<15} {prob_over25*100:<14.1f}% {fair_over25:<14.2f} {format_value(value_over25)}")
+    print(f"{'Under 2.5':<15} {prob_under25*100:<14.1f}% {fair_under25:<14.2f} {'N/A':<20}")
+    print(f"{'Over 1.5':<15} {prob_over15*100:<14.1f}% {fair_over15:<14.2f} {'N/A':<20}")
+    print(f"{'Under 1.5':<15} {prob_under15*100:<14.1f}% {fair_under15:<14.2f} {'N/A':<20}")
+    print(f"{'Over 3.5':<15} {prob_over35*100:<14.1f}% {fair_over35:<14.2f} {'N/A':<20}")
+    print(f"{'Under 3.5':<15} {prob_under35*100:<14.1f}% {fair_under35:<14.2f} {'N/A':<20}")
+    
+    print("="*70)
+    
+    # Recomendación basada en value
+    print("\n📈 RECOMENDACIÓN:")
+    if value_over25 > 5:
+        print(f"✅ APOSTAR Over 2.5 con cuota {market_odds:.2f} (Value: +{value_over25:.1f}%)")
+        kelly = model.kelly_criterion(prob_over25, market_odds) * 100
+        print(f"   Kelly recomendado: {kelly:.1f}% del bankroll")
+    elif value_over25 < -5:
+        print(f"❌ NO APOSTAR Over 2.5 (Value negativo: {value_over25:.1f}%)")
+        print("   Considera Under 2.5 si la cuota es buena")
     else:
-        print("❌ Sin value significativo")
+        print(f"⚖️ Over 2.5 sin value significativo ({value_over25:+.1f}%)")
     
-    print("-"*40)
+    # Sugerir otros mercados basado en probabilidades
+    print("\n💡 SUGERENCIAS PARA OTROS MERCADOS:")
     
-    return probability, value_info['value_percentage'], value_info['has_value']
+    suggestions = []
+    if prob_over15 > 0.75:
+        suggestions.append(f"• Over 1.5 es muy probable ({prob_over15*100:.1f}%) - Busca cuotas > {fair_over15:.2f}")
+    if prob_under15 > 0.75:
+        suggestions.append(f"• Under 1.5 es muy probable ({prob_under15*100:.1f}%) - Busca cuotas > {fair_under15:.2f}")
+    if prob_over35 > 0.40:
+        suggestions.append(f"• Over 3.5 tiene buena posibilidad ({prob_over35*100:.1f}%) - Ideal para cuotas altas")
+    if prob_under35 > 0.75:
+        suggestions.append(f"• Under 3.5 es muy probable ({prob_under35*100:.1f}%) - Busca cuotas > {fair_under35:.2f}")
+    
+    if suggestions:
+        for suggestion in suggestions:
+            print(f"   {suggestion}")
+    else:
+        print("   No hay sugerencias destacadas para otros mercados")
+    
+    print("-"*70)
+    
+    # Devolver los valores para Over 2.5 (para mantener compatibilidad)
+    return prob_over25, value_over25, value_over25 > 5
 
 def main():
     """Función principal del programa"""
@@ -116,18 +175,19 @@ def main():
             # Obtener inputs del usuario
             xg_home = get_float_input("xG Local (0-5): ", 0, 5)
             xg_away = get_float_input("xG Visitante (0-5): ", 0, 5)
-            market_odds = get_float_input("Cuota mercado (>1): ", 1, 10)
+            market_odds = get_float_input("Cuota mercado Over 2.5 (>1): ", 1, 10)
             
             # Analizar la apuesta
             probability, value_pct, has_value = analyze_bet(xg_home, xg_away, market_odds)
             
             # Preguntar si quiere registrar
+            print("\n" + "-"*40)
             if has_value:
-                print("\n💡 Esta apuesta tiene VALUE POSITIVO")
-                register = input("¿Quieres registrar esta apuesta? (s/n): ").strip().lower()
+                print("💡 Esta apuesta tiene VALUE POSITIVO")
             else:
-                print("\n⚠️ Esta apuesta NO tiene value significativo")
-                register = input("¿Registrar de todas formas? (s/n): ").strip().lower()
+                print("⚠️ Esta apuesta NO tiene value significativo")
+            
+            register = input("¿Quieres registrar esta apuesta? (s/n): ").strip().lower()
             
             if register == 's':
                 # Obtener datos de la apuesta
@@ -183,6 +243,9 @@ def quick_test():
     print(f"Cuota mercado: {odds}")
     print(f"Value: {value_info['value_percentage']:+.2f}%")
     print(f"Recomendación: {'✅ APOSTAR' if value_info['has_value'] else '❌ NO APOSTAR'}")
+    
+    # Probar análisis completo
+    analyze_bet(xg_home, xg_away, odds)
 
 if __name__ == "__main__":
     # Si se pasa argumento 'test', ejecuta prueba rápida
