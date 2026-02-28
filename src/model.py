@@ -6,6 +6,7 @@ class PoissonModel:
     """
     Modelo Poisson para calcular probabilidades de fútbol
     Basado en xG (expected goals)
+    Versión: 3.0 - Con BTTS y Combinadas
     """
     
     def __init__(self, xg_home, xg_away):
@@ -42,15 +43,15 @@ class PoissonModel:
         prob_total = 0
         
         # Sumar probabilidades de todos los resultados con total > 2.5
-        for home_goals in range(0, 11):  # 0-10 goles (suficiente rango)
+        for home_goals in range(0, 11):
             for away_goals in range(0, 11):
                 total_goals = home_goals + away_goals
-                if total_goals > 2.5:  # Over 2.5
+                if total_goals > 2.5:
                     prob_home = self.poisson_prob(self.xg_home, home_goals)
                     prob_away = self.poisson_prob(self.xg_away, away_goals)
                     prob_total += prob_home * prob_away
         
-        return min(prob_total, 0.99)  # Cap al 99% para evitar valores extremos
+        return min(prob_total, 0.99)
     
     def prob_under_2_5(self):
         """
@@ -61,9 +62,6 @@ class PoissonModel:
     def prob_over_1_5(self):
         """
         Calcula probabilidad de Over 1.5 goles
-        
-        Returns:
-            float: probabilidad entre 0 y 1
         """
         prob_total = 0
         
@@ -105,50 +103,63 @@ class PoissonModel:
         """
         return 1 - self.prob_over_3_5()
     
-    def prob_exact_goals(self, goals):
+    def prob_btts(self):
         """
-        Calcula probabilidad de un total exacto de goles
+        Calcula probabilidad de que ambos equipos marquen (BTTS)
+        Fórmula: (1 - P(no marque local)) * (1 - P(no marque visitante))
+        """
+        # Probabilidad de que local no marque (0 goles)
+        prob_local_0 = self.poisson_prob(self.xg_home, 0)
         
-        Args:
-            goals (int): número exacto de goles
-            
-        Returns:
-            float: probabilidad
+        # Probabilidad de que visitante no marque (0 goles)
+        prob_visit_0 = self.poisson_prob(self.xg_away, 0)
+        
+        # BTTS = ambos marcan al menos 1 gol
+        prob_btts = (1 - prob_local_0) * (1 - prob_visit_0)
+        
+        return prob_btts
+    
+    def prob_btts_and_over25(self):
+        """
+        Calcula probabilidad de que ambos marquen Y haya over 2.5
         """
         prob = 0
-        for home_goals in range(0, goals + 1):
-            away_goals = goals - home_goals
-            if away_goals >= 0:
-                prob_home = self.poisson_prob(self.xg_home, home_goals)
-                prob_away = self.poisson_prob(self.xg_away, away_goals)
-                prob += prob_home * prob_away
+        for i in range(1, 11):
+            for j in range(1, 11):
+                if i + j > 2.5:
+                    prob += self.poisson_prob(self.xg_home, i) * self.poisson_prob(self.xg_away, j)
         return prob
+    
+    def prob_btts_and_under25(self):
+        """
+        Calcula probabilidad de que ambos marquen PERO sea under 2.5
+        Solo posibles resultados: 1-1 (2 goles)
+        """
+        # Solo 1-1 cumple: ambos marcan y total = 2 (<2.5)
+        prob = self.poisson_prob(self.xg_home, 1) * self.poisson_prob(self.xg_away, 1)
+        return prob
+    
+    def prob_btts_or_over25(self):
+        """
+        Calcula probabilidad de que ocurra BTTS O Over 2.5 (o ambos)
+        """
+        prob_btts = self.prob_btts()
+        prob_over = self.prob_over_2_5()
+        prob_both = self.prob_btts_and_over25()
+        
+        return prob_btts + prob_over - prob_both
     
     def fair_odds(self, probability):
         """
         Calcula cuota justa basada en probabilidad
-        
-        Args:
-            probability (float): probabilidad entre 0 y 1
-            
-        Returns:
-            float: cuota justa
         """
         if probability <= 0:
-            return 1000  # Valor alto si probabilidad muy baja
+            return 1000
         return 1 / probability
     
     def detect_value(self, market_odds, probability, threshold=0.05):
         """
         Detecta si hay value betting
-        
-        Args:
-            market_odds (float): cuota ofrecida por la casa
-            probability (float): probabilidad real calculada
-            threshold (float): umbral mínimo de value (5% por defecto)
-            
-        Returns:
-            dict: información sobre el value
         """
         fair_odds = self.fair_odds(probability)
         value_percentage = (market_odds / fair_odds - 1) * 100
@@ -157,20 +168,12 @@ class PoissonModel:
             'has_value': value_percentage > threshold * 100,
             'value_percentage': value_percentage,
             'fair_odds': fair_odds,
-            'probability': probability * 100  # En porcentaje
+            'probability': probability * 100
         }
     
     def kelly_criterion(self, probability, odds, bankroll_percentage=0.02):
         """
         Calcula stake recomendado según Kelly Criterion
-        
-        Args:
-            probability (float): probabilidad real (0-1)
-            odds (float): cuota de mercado
-            bankroll_percentage (float): % del bankroll a arriesgar
-            
-        Returns:
-            float: stake recomendado (0-1)
         """
         q = 1 - probability
         b = odds - 1
@@ -180,21 +183,16 @@ class PoissonModel:
             
         kelly = (probability * b - q) / b
         
-        # Limitar y aplicar fracción de Kelly
-        return max(0, min(kelly * bankroll_percentage, 0.05))  # Máx 5%
+        return max(0, min(kelly * bankroll_percentage, 0.05))
 
 
-# Función auxiliar para probar el modelo
 def test_model():
     """Prueba rápida del modelo"""
     model = PoissonModel(1.8, 1.2)
-    prob_over = model.prob_over_2_5()
-    print(f"Probabilidad Over 2.5: {prob_over:.2%}")
-    print(f"Cuota justa: {model.fair_odds(prob_over):.2f}")
-    
-    # Probar nuevas funciones
-    print(f"Probabilidad Over 1.5: {model.prob_over_1_5():.2%}")
-    print(f"Probabilidad Over 3.5: {model.prob_over_3_5():.2%}")
+    print(f"Over 2.5: {model.prob_over_2_5():.2%}")
+    print(f"BTTS: {model.prob_btts():.2%}")
+    print(f"BTTS + Over 2.5: {model.prob_btts_and_over25():.2%}")
+    print(f"BTTS + Under 2.5 (1-1): {model.prob_btts_and_under25():.2%}")
 
 
 if __name__ == "__main__":
