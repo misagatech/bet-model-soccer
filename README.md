@@ -2,13 +2,9 @@
 
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![GitHub Pages](https://img.shields.io/badge/GitHub-Pages-success)](https://[TU-USUARIO].github.io/bet-model-soccer/web/)
+[![GitHub Pages](https://img.shields.io/badge/GitHub-Pages-success)](https://misagatech.github.io/bet-model-soccer/web/)
 
 Sistema profesional para detectar **value bets** en fútbol usando **modelo Poisson** basado en **xG (Expected Goals)**.
-
-## 📸 Vista Previa
-
-*(Aquí puedes añadir una captura de pantalla después)*
 
 ## ✨ Características
 
@@ -23,14 +19,13 @@ Sistema profesional para detectar **value bets** en fútbol usando **modelo Pois
 
 La aplicación web está disponible en GitHub Pages:
 
-🔗 **https://MISAGATECH.github.io/bet-model-soccer/web/**
-
+🔗 **https://misagatech.github.io/bet-model-soccer/web/**
 
 ## 💻 Instalación y uso local
 
 ```bash
 # Clonar repositorio
-git clone https://github.com/MISAGATECH/bet-model-soccer.git
+git clone https://github.com/misagatech/bet-model-soccer.git
 cd bet-model-soccer
 
 # Crear entorno virtual
