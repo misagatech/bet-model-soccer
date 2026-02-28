@@ -27,6 +27,32 @@ class PoissonModel {
         return Math.min(prob, 0.99);
     }
 
+    probOver15() {
+        let prob = 0;
+        for (let i = 0; i <= 10; i++) {
+            for (let j = 0; j <= 10; j++) {
+                if (i + j > 1.5) {
+                    prob += this.poissonProb(this.xgHome, i) * 
+                            this.poissonProb(this.xgAway, j);
+                }
+            }
+        }
+        return Math.min(prob, 0.99);
+    }
+
+    probOver35() {
+        let prob = 0;
+        for (let i = 0; i <= 10; i++) {
+            for (let j = 0; j <= 10; j++) {
+                if (i + j > 3.5) {
+                    prob += this.poissonProb(this.xgHome, i) * 
+                            this.poissonProb(this.xgAway, j);
+                }
+            }
+        }
+        return Math.min(prob, 0.99);
+    }
+
     fairOdds(prob) {
         return prob > 0 ? (1 / prob).toFixed(2) : 1000;
     }
@@ -100,30 +126,51 @@ function analyzeBet() {
     }
     
     const model = new PoissonModel(xgHome, xgAway);
-    const prob = model.probOver25();
-    const valueInfo = model.calculateValue(odds, prob);
-    const kelly = model.kellyCriterion(prob, odds);
     
-    // Guardar análisis
+    // Calcular TODAS las probabilidades
+    const probOver25 = model.probOver25();
+    const probUnder25 = 1 - probOver25;
+    const probOver15 = model.probOver15();
+    const probUnder15 = 1 - probOver15;
+    const probOver35 = model.probOver35();
+    const probUnder35 = 1 - probOver35;
+    
+    // Calcular cuotas justas
+    const fairOver25 = (1 / probOver25).toFixed(2);
+    const fairUnder25 = (1 / probUnder25).toFixed(2);
+    const fairOver15 = (1 / probOver15).toFixed(2);
+    const fairUnder15 = (1 / probUnder15).toFixed(2);
+    const fairOver35 = (1 / probOver35).toFixed(2);
+    const fairUnder35 = (1 / probUnder35).toFixed(2);
+    
+    // Calcular value para Over 2.5
+    const valueOver25 = ((odds / fairOver25) - 1) * 100;
+    
+    // Guardar análisis completo
     lastAnalysis = {
-        xgHome, xgAway, odds, prob, valueInfo, kelly
+        xgHome, xgAway, odds,
+        probOver25, probUnder25, probOver15, probUnder15, probOver35, probUnder35,
+        fairOver25, fairUnder25, fairOver15, fairUnder15, fairOver35, fairUnder35,
+        valueOver25,
+        hasValue: valueOver25 > 5
     };
     
-    // Actualizar UI
+    // Actualizar UI con los resultados básicos
     document.getElementById('probabilityValue').textContent = 
-        (prob * 100).toFixed(1) + '%';
-    document.getElementById('fairOddsValue').textContent = 
-        valueInfo.fairOdds;
+        (probOver25 * 100).toFixed(1) + '%';
+    document.getElementById('fairOddsValue').textContent = fairOver25;
     document.getElementById('valuePercentage').textContent = 
-        (valueInfo.hasValue ? '+' : '') + valueInfo.percentage + '%';
-    document.getElementById('kellyValue').textContent = 
-        kelly + '%';
+        (valueOver25 > 0 ? '+' : '') + valueOver25.toFixed(1) + '%';
+    
+    // Calcular Kelly
+    const kelly = model.kellyCriterion(probOver25, odds);
+    document.getElementById('kellyValue').textContent = kelly + '%';
     
     // Actualizar estilo del value card
     const valueCard = document.getElementById('valueCard');
     const valueLabel = document.getElementById('valueLabel');
     
-    if (valueInfo.hasValue) {
+    if (valueOver25 > 5) {
         valueCard.style.background = 'linear-gradient(135deg, #10b981, #34d399)';
         valueCard.style.color = 'white';
         valueLabel.textContent = '✅ VALUE DETECTADO';
@@ -135,11 +182,129 @@ function analyzeBet() {
         valueLabel.style.color = 'white';
     }
     
+    // Crear y mostrar la tabla de análisis completo
+    showFullAnalysis(lastAnalysis);
+    
     // Mostrar sección de resultados
     resultsSection.style.display = 'block';
     
     // Hacer scroll a los resultados
     resultsSection.scrollIntoView({ behavior: 'smooth' });
+}
+
+// Función para mostrar análisis completo
+function showFullAnalysis(data) {
+    // Verificar si ya existe la sección de análisis completo
+    let fullAnalysisSection = document.getElementById('fullAnalysisSection');
+    
+    // Si no existe, crearla
+    if (!fullAnalysisSection) {
+        fullAnalysisSection = document.createElement('section');
+        fullAnalysisSection.id = 'fullAnalysisSection';
+        fullAnalysisSection.className = 'analysis-section';
+        
+        // Insertar después de resultsSection
+        const resultsSection = document.getElementById('resultsSection');
+        resultsSection.parentNode.insertBefore(fullAnalysisSection, resultsSection.nextSibling);
+    }
+    
+    // Determinar la clase de recomendación
+    let recommendClass = '';
+    if (data.valueOver25 > 5) {
+        recommendClass = 'recommend-yes';
+    } else if (data.valueOver25 < -5) {
+        recommendClass = 'recommend-no';
+    } else {
+        recommendClass = 'recommend-neutral';
+    }
+    
+    // Crear el HTML de la tabla completa
+    fullAnalysisSection.innerHTML = `
+        <h2>📊 ANÁLISIS COMPLETO DE MERCADOS</h2>
+        <div class="analysis-card">
+            <div class="xg-total">
+                ⚽ xG Total: ${(parseFloat(data.xgHome) + parseFloat(data.xgAway)).toFixed(2)}
+                (Local: ${data.xgHome} | Visitante: ${data.xgAway})
+            </div>
+            
+            <table class="markets-table">
+                <thead>
+                    <tr>
+                        <th>MERCADO</th>
+                        <th>PROBABILIDAD</th>
+                        <th>CUOTA JUSTA</th>
+                        <th>VALUE</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="${data.valueOver25 > 5 ? 'value-positive' : (data.valueOver25 < -5 ? 'value-negative' : '')}">
+                        <td><strong>Over 2.5</strong></td>
+                        <td>${(data.probOver25 * 100).toFixed(1)}%</td>
+                        <td>${data.fairOver25}</td>
+                        <td>${data.valueOver25 > 0 ? '+' : ''}${data.valueOver25.toFixed(1)}%</td>
+                    </tr>
+                    <tr>
+                        <td>Under 2.5</td>
+                        <td>${(data.probUnder25 * 100).toFixed(1)}%</td>
+                        <td>${data.fairUnder25}</td>
+                        <td>—</td>
+                    </tr>
+                    <tr>
+                        <td>Over 1.5</td>
+                        <td>${(data.probOver15 * 100).toFixed(1)}%</td>
+                        <td>${data.fairOver15}</td>
+                        <td>—</td>
+                    </tr>
+                    <tr>
+                        <td>Under 1.5</td>
+                        <td>${(data.probUnder15 * 100).toFixed(1)}%</td>
+                        <td>${data.fairUnder15}</td>
+                        <td>—</td>
+                    </tr>
+                    <tr>
+                        <td>Over 3.5</td>
+                        <td>${(data.probOver35 * 100).toFixed(1)}%</td>
+                        <td>${data.fairOver35}</td>
+                        <td>—</td>
+                    </tr>
+                    <tr>
+                        <td>Under 3.5</td>
+                        <td>${(data.probUnder35 * 100).toFixed(1)}%</td>
+                        <td>${data.fairUnder35}</td>
+                        <td>—</td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <div class="recommendation-box ${recommendClass}">
+                <h3>📈 RECOMENDACIÓN</h3>
+                ${data.valueOver25 > 5 ? 
+                    `<p>✅ APOSTAR Over 2.5 con cuota ${data.odds.toFixed(2)} (Value: +${data.valueOver25.toFixed(1)}%)</p>
+                     <p class="kelly">💰 Kelly recomendado: ${document.getElementById('kellyValue').textContent} del bankroll</p>` : 
+                    data.valueOver25 < -5 ?
+                    `<p>❌ NO APOSTAR Over 2.5 (Value negativo: ${data.valueOver25.toFixed(1)}%)</p>
+                     <p>⚡ Considera Under 2.5 si la cuota es buena</p>` :
+                    `<p>⚖️ Over 2.5 sin value significativo (${data.valueOver25.toFixed(1)}%)</p>`
+                }
+            </div>
+            
+            <div class="suggestions-box">
+                <h3>💡 SUGERENCIAS PARA OTROS MERCADOS</h3>
+                <ul>
+                    ${data.probOver15 > 0.75 ? 
+                        `<li>✅ Over 1.5 es muy probable (${(data.probOver15*100).toFixed(1)}%) - Busca cuotas > ${data.fairOver15}</li>` : ''}
+                    ${data.probUnder15 > 0.75 ? 
+                        `<li>✅ Under 1.5 es muy probable (${(data.probUnder15*100).toFixed(1)}%) - Busca cuotas > ${data.fairUnder15}</li>` : ''}
+                    ${data.probOver35 > 0.40 ? 
+                        `<li>⚡ Over 3.5 tiene buena posibilidad (${(data.probOver35*100).toFixed(1)}%) - Ideal para cuotas altas</li>` : ''}
+                    ${data.probUnder35 > 0.75 ? 
+                        `<li>✅ Under 3.5 es muy probable (${(data.probUnder35*100).toFixed(1)}%) - Busca cuotas > ${data.fairUnder35}</li>` : ''}
+                </ul>
+                ${(!data.probOver15 > 0.75 && !data.probUnder15 > 0.75 && !data.probOver35 > 0.40 && !data.probUnder35 > 0.75) ? 
+                    '<p>No hay sugerencias destacadas para otros mercados</p>' : ''}
+            </div>
+        </div>
+    `;
 }
 
 // Registrar resultado
@@ -158,8 +323,8 @@ function registerResult(result) {
         xgHome: lastAnalysis.xgHome,
         xgAway: lastAnalysis.xgAway,
         odds: lastAnalysis.odds,
-        value: (lastAnalysis.valueInfo.hasValue ? '+' : '') + 
-               lastAnalysis.valueInfo.percentage + '%',
+        value: (lastAnalysis.valueOver25 > 0 ? '+' : '') + 
+               lastAnalysis.valueOver25.toFixed(1) + '%',
         stake: stake,
         result: result,
         profit: (profit > 0 ? '+' : '') + profit.toFixed(2)
