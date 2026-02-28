@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+ENV/
+.env
+.venv
+pip-log.txt
+pip-delete-this-directory.txt
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Archivos de datos
+*.csv
+!example_bets.csv
+data/
+!data/.gitkeep
+
+# Archivos temporales
+*.log
+*.tmp
+*.temp
