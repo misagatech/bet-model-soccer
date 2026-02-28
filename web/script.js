@@ -104,13 +104,29 @@ class PoissonModel {
 // Datos de ejemplo
 let bets = [];
 
+// Cargar apuestas guardadas del localStorage
+function loadBets() {
+    const savedBets = localStorage.getItem('bets');
+    if (savedBets) {
+        bets = JSON.parse(savedBets);
+    }
+    updateStats();
+    updateBetsTable();
+}
+
+// Guardar apuestas en localStorage
+function saveBets() {
+    localStorage.setItem('bets', JSON.stringify(bets));
+}
+
 // Elementos del DOM
 const analyzeBtn = document.getElementById('analyzeBtn');
 const marketSection = document.getElementById('marketSection');
 const resultsSection = document.getElementById('resultsSection');
 const marketGrid = document.getElementById('marketGrid');
-const registerWinBtn = document.getElementById('registerWinBtn');
-const registerLossBtn = document.getElementById('registerLossBtn');
+const saveBetBtn = document.getElementById('saveBetBtn');
+const pendingBetsSection = document.getElementById('pendingBetsSection');
+const pendingBetsList = document.getElementById('pendingBetsList');
 
 // Variables globales
 let currentModel = null;
@@ -134,8 +150,7 @@ const markets = [
 
 // Event Listeners
 analyzeBtn.addEventListener('click', analyzeAllMarkets);
-registerWinBtn.addEventListener('click', () => registerResult('win'));
-registerLossBtn.addEventListener('click', () => registerResult('loss'));
+saveBetBtn.addEventListener('click', saveBet);
 
 function analyzeAllMarkets() {
     const xgHome = parseFloat(document.getElementById('xgHome').value);
@@ -172,7 +187,7 @@ function showMarketButtons() {
             <span class="market-prob">${(prob*100).toFixed(1)}% | @${fairOdds}</span>
         `;
         
-        button.addEventListener('click', () => selectMarket(market.id));
+        button.addEventListener('click', (e) => selectMarket(market.id, e));
         
         marketGrid.appendChild(button);
     });
@@ -181,7 +196,7 @@ function showMarketButtons() {
     marketSection.scrollIntoView({ behavior: 'smooth' });
 }
 
-function selectMarket(marketId) {
+function selectMarket(marketId, event) {
     selectedMarket = markets.find(m => m.id === marketId);
     const probability = currentProbabilities[marketId];
     const fairOdds = 1 / probability;
@@ -255,44 +270,126 @@ function calculateValue() {
 document.getElementById('marketOdds').addEventListener('input', calculateValue);
 document.getElementById('stakeAmount').addEventListener('input', calculateValue);
 
-function registerResult(result) {
+function saveBet() {
     if (!lastAnalysis) {
-        alert('Primero debes analizar un mercado');
+        alert('Primero debes seleccionar un mercado');
         return;
     }
     
     const stake = parseFloat(document.getElementById('stakeAmount').value);
     const odds = parseFloat(document.getElementById('marketOdds').value);
-    const profit = result === 'win' ? stake * (odds - 1) : -stake;
     const valuePct = ((odds / lastAnalysis.fairOdds) - 1) * 100;
     
     const newBet = {
-        date: new Date().toLocaleDateString('es-ES'),
+        id: Date.now(), // ID único
+        date: new Date().toLocaleString('es-ES'),
+        xgHome: lastAnalysis.xgHome,
+        xgAway: lastAnalysis.xgAway,
         market: lastAnalysis.market,
         odds: odds,
         value: (valuePct > 0 ? '+' : '') + valuePct.toFixed(1) + '%',
         stake: stake,
+        status: 'pending', // 'pending', 'won', 'lost'
+        result: null,
+        profit: null
+    };
+    
+    bets.unshift(newBet);
+    saveBets();
+    updateStats();
+    updateBetsTable();
+    updatePendingBets();
+    
+    alert('✅ Apuesta guardada correctamente. Podrás registrar el resultado después del partido.');
+    
+    // Limpiar selección
+    resultsSection.style.display = 'none';
+    marketSection.style.display = 'none';
+}
+
+function registerResult(betId, result) {
+    const betIndex = bets.findIndex(b => b.id === betId);
+    if (betIndex === -1) return;
+    
+    const bet = bets[betIndex];
+    const profit = result === 'win' ? bet.stake * (bet.odds - 1) : -bet.stake;
+    
+    bets[betIndex] = {
+        ...bet,
+        status: result === 'win' ? 'won' : 'lost',
         result: result,
         profit: (profit > 0 ? '+' : '') + profit.toFixed(2)
     };
     
-    bets.unshift(newBet);
+    saveBets();
     updateStats();
     updateBetsTable();
+    updatePendingBets();
     
-    alert(`✅ Apuesta registrada como ${result === 'win' ? 'GANADA' : 'PERDIDA'}\nProfit: ${newBet.profit}`);
+    alert(`✅ Resultado registrado: ${result === 'win' ? 'GANADA' : 'PERDIDA'}\nProfit: ${bets[betIndex].profit}`);
+}
+
+function updatePendingBets() {
+    const pendingBets = bets.filter(b => b.status === 'pending');
+    
+    if (pendingBets.length === 0) {
+        pendingBetsSection.style.display = 'none';
+        return;
+    }
+    
+    pendingBetsSection.style.display = 'block';
+    pendingBetsList.innerHTML = '';
+    
+    pendingBets.forEach(bet => {
+        const card = document.createElement('div');
+        card.className = 'pending-bet-card';
+        card.innerHTML = `
+            <div class="pending-bet-header">
+                <span class="bet-market">${bet.market}</span>
+                <span class="bet-date">${bet.date}</span>
+            </div>
+            <div class="pending-bet-details">
+                <div class="detail-item">
+                    <span class="detail-label">Cuota:</span>
+                    <span class="detail-value">${bet.odds.toFixed(2)}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Stake:</span>
+                    <span class="detail-value">€${bet.stake}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Value:</span>
+                    <span class="detail-value ${bet.value.includes('+') ? 'value-positive-text' : 'value-negative-text'}">${bet.value}</span>
+                </div>
+            </div>
+            <div class="pending-bet-actions">
+                <button class="btn-small btn-success" onclick="registerResult(${bet.id}, 'win')">
+                    ✅ Ganó
+                </button>
+                <button class="btn-small btn-danger" onclick="registerResult(${bet.id}, 'loss')">
+                    ❌ Perdió
+                </button>
+            </div>
+        `;
+        pendingBetsList.appendChild(card);
+    });
 }
 
 function updateStats() {
     const total = bets.length;
-    const wins = bets.filter(b => b.result === 'win').length;
-    const losses = total - wins;
-    const winrate = total > 0 ? (wins / total * 100).toFixed(1) : 0;
-    const totalProfit = bets.reduce((sum, b) => sum + parseFloat(b.profit), 0);
+    const completed = bets.filter(b => b.status !== 'pending').length;
+    const wins = bets.filter(b => b.status === 'won').length;
+    const losses = bets.filter(b => b.status === 'lost').length;
+    const pending = bets.filter(b => b.status === 'pending').length;
+    
+    const winrate = completed > 0 ? (wins / completed * 100).toFixed(1) : 0;
+    const totalProfit = bets.reduce((sum, b) => sum + (parseFloat(b.profit) || 0), 0);
     const totalStake = bets.reduce((sum, b) => sum + b.stake, 0);
     const roi = totalStake > 0 ? (totalProfit / totalStake * 100).toFixed(1) : 0;
     
     document.getElementById('totalBets').textContent = total;
+    document.getElementById('completedBets').textContent = completed;
+    document.getElementById('pendingBets').textContent = pending;
     document.getElementById('wins').textContent = wins;
     document.getElementById('losses').textContent = losses;
     document.getElementById('winrate').textContent = winrate + '%';
@@ -317,20 +414,31 @@ function updateBetsTable() {
         valueCell.textContent = bet.value;
         valueCell.style.color = bet.value.includes('+') ? '#10b981' : '#ef4444';
         
-        const resultCell = row.insertCell();
-        const badge = document.createElement('span');
-        badge.className = `result-badge ${bet.result}`;
-        badge.textContent = bet.result === 'win' ? 'WIN' : 'LOSS';
-        resultCell.appendChild(badge);
+        const stakeCell = row.insertCell();
+        stakeCell.textContent = '€' + bet.stake;
+        
+        const statusCell = row.insertCell();
+        if (bet.status === 'pending') {
+            statusCell.innerHTML = '<span class="status-badge pending">⏳ Pendiente</span>';
+        } else {
+            const badge = document.createElement('span');
+            badge.className = `result-badge ${bet.result}`;
+            badge.textContent = bet.result === 'win' ? 'WIN' : 'LOSS';
+            statusCell.appendChild(badge);
+        }
         
         const profitCell = row.insertCell();
-        profitCell.textContent = '€' + bet.profit;
-        profitCell.className = bet.profit.includes('+') ? 'profit-positive' : 'profit-negative';
+        if (bet.profit) {
+            profitCell.textContent = '€' + bet.profit;
+            profitCell.className = bet.profit.includes('+') ? 'profit-positive' : 'profit-negative';
+        } else {
+            profitCell.textContent = '—';
+        }
     });
 }
 
 // Inicializar
 document.addEventListener('DOMContentLoaded', () => {
-    updateStats();
-    updateBetsTable();
+    loadBets();
+    updatePendingBets();
 });
