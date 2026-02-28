@@ -112,6 +112,7 @@ function loadBets() {
     }
     updateStats();
     updateBetsTable();
+    updatePendingBets();
 }
 
 // Guardar apuestas en localStorage
@@ -127,6 +128,9 @@ const marketGrid = document.getElementById('marketGrid');
 const saveBetBtn = document.getElementById('saveBetBtn');
 const pendingBetsSection = document.getElementById('pendingBetsSection');
 const pendingBetsList = document.getElementById('pendingBetsList');
+const sortByProbBtn = document.getElementById('sortByProbBtn');
+const sortByValueBtn = document.getElementById('sortByValueBtn');
+const legend = document.getElementById('legend');
 
 // Variables globales
 let currentModel = null;
@@ -151,6 +155,16 @@ const markets = [
 // Event Listeners
 analyzeBtn.addEventListener('click', analyzeAllMarkets);
 saveBetBtn.addEventListener('click', saveBet);
+sortByProbBtn.addEventListener('click', () => {
+    sortByProbBtn.classList.add('active');
+    sortByValueBtn.classList.remove('active');
+    showMarketButtons();
+});
+sortByValueBtn.addEventListener('click', () => {
+    sortByValueBtn.classList.add('active');
+    sortByProbBtn.classList.remove('active');
+    showMarketButtonsByValue();
+});
 
 function analyzeAllMarkets() {
     const xgHome = parseFloat(document.getElementById('xgHome').value);
@@ -169,22 +183,48 @@ function analyzeAllMarkets() {
         currentProbabilities[market.id] = currentModel[market.probFunc]();
     });
     
-    // Mostrar botones de mercados
+    // Mostrar botones de mercados (por defecto por probabilidad)
     showMarketButtons();
+    showLegend();
 }
 
 function showMarketButtons() {
     marketGrid.innerHTML = '';
     
-    markets.forEach(market => {
+    // Ordenar mercados por probabilidad (de mayor a menor)
+    const sortedMarkets = [...markets].sort((a, b) => {
+        return currentProbabilities[b.id] - currentProbabilities[a.id];
+    });
+    
+    sortedMarkets.forEach(market => {
         const prob = currentProbabilities[market.id];
         const fairOdds = (1 / prob).toFixed(2);
         
+        // Determinar color según probabilidad (SEMÁFORO)
+        let colorClass = '';
+        let emoji = '';
+        
+        if (prob >= 0.70) {
+            colorClass = 'market-high';
+            emoji = '🟢';
+        } else if (prob >= 0.50) {
+            colorClass = 'market-medium';
+            emoji = '🟡';
+        } else if (prob >= 0.30) {
+            colorClass = 'market-low';
+            emoji = '🟠';
+        } else {
+            colorClass = 'market-verylow';
+            emoji = '🔴';
+        }
+        
         const button = document.createElement('button');
-        button.className = 'market-btn';
+        button.className = `market-btn ${colorClass}`;
         button.innerHTML = `
+            <span class="market-emoji">${emoji}</span>
             <strong>${market.name}</strong>
-            <span class="market-prob">${(prob*100).toFixed(1)}% | @${fairOdds}</span>
+            <span class="market-prob">${(prob*100).toFixed(1)}%</span>
+            <span class="market-odds">@${fairOdds}</span>
         `;
         
         button.addEventListener('click', (e) => selectMarket(market.id, e));
@@ -194,6 +234,83 @@ function showMarketButtons() {
     
     marketSection.style.display = 'block';
     marketSection.scrollIntoView({ behavior: 'smooth' });
+}
+
+function showMarketButtonsByValue() {
+    marketGrid.innerHTML = '';
+    
+    // Calcular value potencial con cuota de referencia 2.0
+    const marketsWithValue = markets.map(market => {
+        const prob = currentProbabilities[market.id];
+        const fairOdds = 1 / prob;
+        const potentialValue = ((2.0 / fairOdds) - 1) * 100;
+        
+        return {
+            ...market,
+            prob,
+            fairOdds,
+            potentialValue
+        };
+    });
+    
+    // Ordenar por value potencial (de mayor a menor)
+    const sortedMarkets = marketsWithValue.sort((a, b) => b.potentialValue - a.potentialValue);
+    
+    sortedMarkets.forEach(market => {
+        const { prob, fairOdds, potentialValue } = market;
+        
+        // Determinar color según value potencial
+        let colorClass = '';
+        let emoji = '';
+        
+        if (potentialValue > 20) {
+            colorClass = 'market-value-high';
+            emoji = '💰';
+        } else if (potentialValue > 10) {
+            colorClass = 'market-value-medium';
+            emoji = '💵';
+        } else if (potentialValue > 0) {
+            colorClass = 'market-value-low';
+            emoji = '💸';
+        } else {
+            colorClass = 'market-value-negative';
+            emoji = '❌';
+        }
+        
+        const button = document.createElement('button');
+        button.className = `market-btn ${colorClass}`;
+        button.innerHTML = `
+            <span class="market-emoji">${emoji}</span>
+            <strong>${market.name}</strong>
+            <span class="market-prob">${(prob*100).toFixed(1)}%</span>
+            <span class="market-value">${potentialValue > 0 ? '+' : ''}${potentialValue.toFixed(1)}%</span>
+        `;
+        
+        button.addEventListener('click', (e) => selectMarket(market.id, e));
+        
+        marketGrid.appendChild(button);
+    });
+}
+
+function showLegend() {
+    legend.innerHTML = `
+        <div class="legend-item">
+            <span class="legend-color high"></span>
+            <span>Muy probable (>70%)</span>
+        </div>
+        <div class="legend-item">
+            <span class="legend-color medium"></span>
+            <span>Probable (50-70%)</span>
+        </div>
+        <div class="legend-item">
+            <span class="legend-color low"></span>
+            <span>Poco probable (30-50%)</span>
+        </div>
+        <div class="legend-item">
+            <span class="legend-color verylow"></span>
+            <span>Muy improbable (<30%)</span>
+        </div>
+    `;
 }
 
 function selectMarket(marketId, event) {
@@ -281,7 +398,7 @@ function saveBet() {
     const valuePct = ((odds / lastAnalysis.fairOdds) - 1) * 100;
     
     const newBet = {
-        id: Date.now(), // ID único
+        id: Date.now(),
         date: new Date().toLocaleString('es-ES'),
         xgHome: lastAnalysis.xgHome,
         xgAway: lastAnalysis.xgAway,
@@ -289,7 +406,7 @@ function saveBet() {
         odds: odds,
         value: (valuePct > 0 ? '+' : '') + valuePct.toFixed(1) + '%',
         stake: stake,
-        status: 'pending', // 'pending', 'won', 'lost'
+        status: 'pending',
         result: null,
         profit: null
     };
@@ -328,6 +445,9 @@ function registerResult(betId, result) {
     
     alert(`✅ Resultado registrado: ${result === 'win' ? 'GANADA' : 'PERDIDA'}\nProfit: ${bets[betIndex].profit}`);
 }
+
+// Hacer la función global para que funcione desde el HTML
+window.registerResult = registerResult;
 
 function updatePendingBets() {
     const pendingBets = bets.filter(b => b.status === 'pending');
