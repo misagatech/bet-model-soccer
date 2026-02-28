@@ -101,6 +101,16 @@ class PoissonModel {
     }
 }
 
+// Función para formatear moneda en pesos colombianos
+function formatCOP(amount) {
+    return new Intl.NumberFormat('es-CO', {
+        style: 'currency',
+        currency: 'COP',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+    }).format(amount).replace('COP', '$');
+}
+
 // Datos de ejemplo
 let bets = [];
 
@@ -131,12 +141,16 @@ const pendingBetsList = document.getElementById('pendingBetsList');
 const sortByProbBtn = document.getElementById('sortByProbBtn');
 const sortByValueBtn = document.getElementById('sortByValueBtn');
 const legend = document.getElementById('legend');
+const matchBanner = document.getElementById('matchBanner');
+const selectedMatchInfo = document.getElementById('selectedMatchInfo');
 
 // Variables globales
 let currentModel = null;
 let currentProbabilities = {};
 let selectedMarket = null;
 let lastAnalysis = null;
+let currentHomeTeam = '';
+let currentAwayTeam = '';
 
 // Lista de mercados en español
 const markets = [
@@ -169,6 +183,8 @@ sortByValueBtn.addEventListener('click', () => {
 function analyzeAllMarkets() {
     const xgHome = parseFloat(document.getElementById('xgHome').value);
     const xgAway = parseFloat(document.getElementById('xgAway').value);
+    currentHomeTeam = document.getElementById('homeTeam').value || 'Local';
+    currentAwayTeam = document.getElementById('awayTeam').value || 'Visitante';
     
     if (!xgHome || !xgAway) {
         alert('Por favor completa los xG de ambos equipos');
@@ -183,7 +199,17 @@ function analyzeAllMarkets() {
         currentProbabilities[market.id] = currentModel[market.probFunc]();
     });
     
-    // Mostrar botones de mercados (por defecto por probabilidad)
+    // Mostrar banner del partido
+    matchBanner.innerHTML = `
+        <div class="match-banner-content">
+            <span class="home-team">🏠 ${currentHomeTeam}</span>
+            <span class="vs">VS</span>
+            <span class="away-team">✈️ ${currentAwayTeam}</span>
+            <span class="xg-info">xG: ${xgHome.toFixed(2)} - ${xgAway.toFixed(2)}</span>
+        </div>
+    `;
+    
+    // Mostrar botones de mercados
     showMarketButtons();
     showLegend();
 }
@@ -320,6 +346,8 @@ function selectMarket(marketId, event) {
     
     // Guardar análisis
     lastAnalysis = {
+        homeTeam: currentHomeTeam,
+        awayTeam: currentAwayTeam,
         xgHome: parseFloat(document.getElementById('xgHome').value),
         xgAway: parseFloat(document.getElementById('xgAway').value),
         market: selectedMarket.name,
@@ -328,6 +356,15 @@ function selectMarket(marketId, event) {
     };
     
     // Actualizar UI
+    selectedMatchInfo.innerHTML = `
+        <div class="selected-match-banner">
+            <span class="home-team">🏠 ${currentHomeTeam}</span>
+            <span class="vs">vs</span>
+            <span class="away-team">✈️ ${currentAwayTeam}</span>
+            <span class="market-name">🎯 ${selectedMarket.name}</span>
+        </div>
+    `;
+    
     document.getElementById('marketLabel').textContent = selectedMarket.name;
     document.getElementById('probabilityValue').textContent = (probability * 100).toFixed(1) + '%';
     document.getElementById('fairOddsValue').textContent = fairOdds.toFixed(2);
@@ -400,8 +437,9 @@ function saveBet() {
     const newBet = {
         id: Date.now(),
         date: new Date().toLocaleString('es-ES'),
-        xgHome: lastAnalysis.xgHome,
-        xgAway: lastAnalysis.xgAway,
+        homeTeam: lastAnalysis.homeTeam,
+        awayTeam: lastAnalysis.awayTeam,
+        match: `${lastAnalysis.homeTeam} vs ${lastAnalysis.awayTeam}`,
         market: lastAnalysis.market,
         odds: odds,
         value: (valuePct > 0 ? '+' : '') + valuePct.toFixed(1) + '%',
@@ -435,7 +473,7 @@ function registerResult(betId, result) {
         ...bet,
         status: result === 'win' ? 'won' : 'lost',
         result: result,
-        profit: (profit > 0 ? '+' : '') + profit.toFixed(2)
+        profit: profit
     };
     
     saveBets();
@@ -443,7 +481,7 @@ function registerResult(betId, result) {
     updateBetsTable();
     updatePendingBets();
     
-    alert(`✅ Resultado registrado: ${result === 'win' ? 'GANADA' : 'PERDIDA'}\nProfit: ${bets[betIndex].profit}`);
+    alert(`✅ Resultado registrado: ${result === 'win' ? 'GANADA' : 'PERDIDA'}\nProfit: ${formatCOP(profit)}`);
 }
 
 // Hacer la función global para que funcione desde el HTML
@@ -468,6 +506,9 @@ function updatePendingBets() {
                 <span class="bet-market">${bet.market}</span>
                 <span class="bet-date">${bet.date}</span>
             </div>
+            <div class="pending-bet-match">
+                ⚽ ${bet.homeTeam} vs ${bet.awayTeam}
+            </div>
             <div class="pending-bet-details">
                 <div class="detail-item">
                     <span class="detail-label">Cuota:</span>
@@ -475,7 +516,7 @@ function updatePendingBets() {
                 </div>
                 <div class="detail-item">
                     <span class="detail-label">Stake:</span>
-                    <span class="detail-value">€${bet.stake}</span>
+                    <span class="detail-value">${formatCOP(bet.stake)}</span>
                 </div>
                 <div class="detail-item">
                     <span class="detail-label">Value:</span>
@@ -513,10 +554,8 @@ function updateStats() {
     document.getElementById('wins').textContent = wins;
     document.getElementById('losses').textContent = losses;
     document.getElementById('winrate').textContent = winrate + '%';
-    document.getElementById('totalProfit').textContent = 
-        (totalProfit > 0 ? '+' : '') + '€' + totalProfit.toFixed(2);
-    document.getElementById('roi').textContent = 
-        (roi > 0 ? '+' : '') + roi + '%';
+    document.getElementById('totalProfit').textContent = formatCOP(totalProfit);
+    document.getElementById('roi').textContent = (roi > 0 ? '+' : '') + roi + '%';
 }
 
 function updateBetsTable() {
@@ -527,6 +566,7 @@ function updateBetsTable() {
         const row = tbody.insertRow();
         
         row.insertCell().textContent = bet.date;
+        row.insertCell().textContent = bet.match || `${bet.homeTeam} vs ${bet.awayTeam}`;
         row.insertCell().textContent = bet.market;
         row.insertCell().textContent = bet.odds.toFixed(2);
         
@@ -535,7 +575,7 @@ function updateBetsTable() {
         valueCell.style.color = bet.value.includes('+') ? '#10b981' : '#ef4444';
         
         const stakeCell = row.insertCell();
-        stakeCell.textContent = '€' + bet.stake;
+        stakeCell.textContent = formatCOP(bet.stake);
         
         const statusCell = row.insertCell();
         if (bet.status === 'pending') {
@@ -549,8 +589,8 @@ function updateBetsTable() {
         
         const profitCell = row.insertCell();
         if (bet.profit) {
-            profitCell.textContent = '€' + bet.profit;
-            profitCell.className = bet.profit.includes('+') ? 'profit-positive' : 'profit-negative';
+            profitCell.textContent = formatCOP(bet.profit);
+            profitCell.className = bet.profit > 0 ? 'profit-positive' : 'profit-negative';
         } else {
             profitCell.textContent = '—';
         }
