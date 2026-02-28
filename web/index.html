@@ -9,7 +9,7 @@
 </head>
 <body>
     <div class="container">
-        <!-- Header con nombre en español -->
+        <!-- Header -->
         <header class="header">
             <div class="logo">
                 <h1>⚽ SISTEMA VALUE BETTING</h1>
@@ -126,12 +126,17 @@
 
                 <!-- Action Buttons -->
                 <div class="result-actions">
-                    <button class="btn btn-success" id="registerWinBtn">
-                        ✅ Registrar WIN
+                    <button class="btn btn-primary" id="saveBetBtn">
+                        💾 Guardar Apuesta (Pendiente)
                     </button>
-                    <button class="btn btn-danger" id="registerLossBtn">
-                        ❌ Registrar LOSS
-                    </button>
+                </div>
+            </section>
+
+            <!-- Pending Bets Section -->
+            <section class="pending-section" id="pendingBetsSection" style="display: none;">
+                <h2>⏳ Apuestas Pendientes</h2>
+                <div class="pending-grid" id="pendingBetsList">
+                    <!-- Las apuestas pendientes se generan aquí -->
                 </div>
             </section>
 
@@ -143,6 +148,14 @@
                     <div class="stat-item">
                         <span class="stat-label">Total Apuestas</span>
                         <span class="stat-value" id="totalBets">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Completadas</span>
+                        <span class="stat-value" id="completedBets">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Pendientes</span>
+                        <span class="stat-value pending" id="pendingBets">0</span>
                     </div>
                     <div class="stat-item">
                         <span class="stat-label">Wins</span>
@@ -176,6 +189,7 @@
                                 <th>Mercado</th>
                                 <th>Cuota</th>
                                 <th>Value</th>
+                                <th>Stake</th>
                                 <th>Resultado</th>
                                 <th>Profit</th>
                             </tr>
