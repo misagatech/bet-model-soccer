@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎯 Value Betting System - Poisson Model</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <h1>🎯 VALUE BETTING SYSTEM</h1>
+                <p>Modelo Poisson basado en xG</p>
+            </div>
+            <div class="stats-badge">
+                <span class="badge">📊 v1.0</span>
+                <span class="badge">⚡ 100+ análisis</span>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main>
+            <!-- Input Section -->
+            <section class="input-section">
+                <h2>📝 Nueva Apuesta</h2>
+                <form id="betForm" class="bet-form">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="xgHome">
+                                <span class="label-icon">⚽</span>
+                                xG Local
+                            </label>
+                            <input type="number" id="xgHome" step="0.1" min="0" max="5" value="1.8" required>
+                            <small>Expected goals equipo local</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="xgAway">
+                                <span class="label-icon">⚽</span>
+                                xG Visitante
+                            </label>
+                            <input type="number" id="xgAway" step="0.1" min="0" max="5" value="1.2" required>
+                            <small>Expected goals equipo visitante</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="odds">
+                                <span class="label-icon">💰</span>
+                                Cuota Mercado
+                            </label>
+                            <input type="number" id="odds" step="0.01" min="1" max="10" value="1.95" required>
+                            <small>Cuota ofrecida por la casa</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="stake">
+                                <span class="label-icon">💵</span>
+                                Stake
+                            </label>
+                            <input type="number" id="stake" step="10" min="0" value="100" required>
+                            <small>Cantidad a apostar</small>
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="button" id="analyzeBtn" class="btn btn-primary">
+                            🔍 Analizar Apuesta
+                        </button>
+                        <button type="reset" class="btn btn-secondary">
+                            🔄 Limpiar
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+            <!-- Analysis Results -->
+            <section class="results-section" id="resultsSection" style="display: none;">
+                <h2>📊 Resultado del Análisis</h2>
+                
+                <div class="results-grid">
+                    <!-- Probability Card -->
+                    <div class="result-card">
+                        <div class="card-header">
+                            <span class="card-icon">📈</span>
+                            <h3>Probabilidad</h3>
+                        </div>
+                        <div class="card-value" id="probabilityValue">58.3%</div>
+                        <div class="card-label">Over 2.5 goles</div>
+                    </div>
+
+                    <!-- Fair Odds Card -->
+                    <div class="result-card">
+                        <div class="card-header">
+                            <span class="card-icon">🎲</span>
+                            <h3>Cuota Justa</h3>
+                        </div>
+                        <div class="card-value" id="fairOddsValue">1.71</div>
+                        <div class="card-label">Probabilidad real</div>
+                    </div>
+
+                    <!-- Value Card -->
+                    <div class="result-card" id="valueCard">
+                        <div class="card-header">
+                            <span class="card-icon">💰</span>
+                            <h3>Value</h3>
+                        </div>
+                        <div class="card-value" id="valuePercentage">+14.2%</div>
+                        <div class="card-label" id="valueLabel">✅ VALUE DETECTADO</div>
+                    </div>
+
+                    <!-- Kelly Card -->
+                    <div class="result-card">
+                        <div class="card-header">
+                            <span class="card-icon">📐</span>
+                            <h3>Kelly Criterion</h3>
+                        </div>
+                        <div class="card-value" id="kellyValue">2.8%</div>
+                        <div class="card-label">Stake recomendado</div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="result-actions">
+                    <button class="btn btn-success" id="registerWinBtn">
+                        ✅ Registrar WIN
+                    </button>
+                    <button class="btn btn-danger" id="registerLossBtn">
+                        ❌ Registrar LOSS
+                    </button>
+                </div>
+            </section>
+
+            <!-- Statistics Section -->
+            <section class="stats-section">
+                <h2>📊 Estadísticas Globales</h2>
+                
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <span class="stat-label">Total Apuestas</span>
+                        <span class="stat-value" id="totalBets">24</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Wins</span>
+                        <span class="stat-value win" id="wins">16</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Losses</span>
+                        <span class="stat-value loss" id="losses">8</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Winrate</span>
+                        <span class="stat-value" id="winrate">66.7%</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Profit Total</span>
+                        <span class="stat-value profit" id="totalProfit">+€1,250</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">ROI</span>
+                        <span class="stat-value roi" id="roi">+24.5%</span>
+                    </div>
+                </div>
+
+                <!-- Last Bets Table -->
+                <div class="table-container">
+                    <h3>📋 Últimas Apuestas</h3>
+                    <table class="bets-table">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>xG L - V</th>
+                                <th>Cuota</th>
+                                <th>Value</th>
+                                <th>Stake</th>
+                                <th>Resultado</th>
+                                <th>Profit</th>
+                            </tr>
+                        </thead>
+                        <tbody id="betsTableBody">
+                            <!-- Aquí se insertarán las apuestas con JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>© 2024 Value Betting System - Modelo Poisson</p>
+            <div class="footer-links">
+                <a href="#">📁 GitHub</a>
+                <a href="#">📊 Documentación</a>
+                <a href="#">🐛 Reportar Bug</a>
+            </div>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
