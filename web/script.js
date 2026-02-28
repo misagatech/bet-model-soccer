@@ -175,10 +175,15 @@ function analyzeBet() {
         valueCard.style.color = 'white';
         valueLabel.textContent = '✅ VALUE DETECTADO';
         valueLabel.style.color = 'white';
-    } else {
+    } else if (valueOver25 < -5) {
         valueCard.style.background = 'linear-gradient(135deg, #ef4444, #f87171)';
         valueCard.style.color = 'white';
-        valueLabel.textContent = '❌ SIN VALUE';
+        valueLabel.textContent = '❌ VALUE NEGATIVO';
+        valueLabel.style.color = 'white';
+    } else {
+        valueCard.style.background = 'linear-gradient(135deg, #f59e0b, #fbbf24)';
+        valueCard.style.color = 'white';
+        valueLabel.textContent = '⚖️ SIN VALUE';
         valueLabel.style.color = 'white';
     }
     
@@ -192,7 +197,7 @@ function analyzeBet() {
     resultsSection.scrollIntoView({ behavior: 'smooth' });
 }
 
-// Función para mostrar análisis completo
+// Función para mostrar análisis completo (VERSIÓN COMPLETA)
 function showFullAnalysis(data) {
     // Verificar si ya existe la sección de análisis completo
     let fullAnalysisSection = document.getElementById('fullAnalysisSection');
@@ -227,64 +232,69 @@ function showFullAnalysis(data) {
                 (Local: ${data.xgHome} | Visitante: ${data.xgAway})
             </div>
             
-            <table class="markets-table">
-                <thead>
-                    <tr>
-                        <th>MERCADO</th>
-                        <th>PROBABILIDAD</th>
-                        <th>CUOTA JUSTA</th>
-                        <th>VALUE</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr class="${data.valueOver25 > 5 ? 'value-positive' : (data.valueOver25 < -5 ? 'value-negative' : '')}">
-                        <td><strong>Over 2.5</strong></td>
-                        <td>${(data.probOver25 * 100).toFixed(1)}%</td>
-                        <td>${data.fairOver25}</td>
-                        <td>${data.valueOver25 > 0 ? '+' : ''}${data.valueOver25.toFixed(1)}%</td>
-                    </tr>
-                    <tr>
-                        <td>Under 2.5</td>
-                        <td>${(data.probUnder25 * 100).toFixed(1)}%</td>
-                        <td>${data.fairUnder25}</td>
-                        <td>—</td>
-                    </tr>
-                    <tr>
-                        <td>Over 1.5</td>
-                        <td>${(data.probOver15 * 100).toFixed(1)}%</td>
-                        <td>${data.fairOver15}</td>
-                        <td>—</td>
-                    </tr>
-                    <tr>
-                        <td>Under 1.5</td>
-                        <td>${(data.probUnder15 * 100).toFixed(1)}%</td>
-                        <td>${data.fairUnder15}</td>
-                        <td>—</td>
-                    </tr>
-                    <tr>
-                        <td>Over 3.5</td>
-                        <td>${(data.probOver35 * 100).toFixed(1)}%</td>
-                        <td>${data.fairOver35}</td>
-                        <td>—</td>
-                    </tr>
-                    <tr>
-                        <td>Under 3.5</td>
-                        <td>${(data.probUnder35 * 100).toFixed(1)}%</td>
-                        <td>${data.fairUnder35}</td>
-                        <td>—</td>
-                    </tr>
-                </tbody>
-            </table>
+            <div class="markets-table-container">
+                <table class="markets-table">
+                    <thead>
+                        <tr>
+                            <th>MERCADO</th>
+                            <th>PROB</th>
+                            <th>C. JUSTA</th>
+                            <th>VALUE</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr class="${data.valueOver25 > 5 ? 'value-positive' : (data.valueOver25 < -5 ? 'value-negative' : '')}">
+                            <td><strong>Over 2.5</strong></td>
+                            <td>${(data.probOver25 * 100).toFixed(1)}%</td>
+                            <td>${data.fairOver25}</td>
+                            <td>${data.valueOver25 > 0 ? '+' : ''}${data.valueOver25.toFixed(1)}%</td>
+                        </tr>
+                        <tr>
+                            <td>Under 2.5</td>
+                            <td>${(data.probUnder25 * 100).toFixed(1)}%</td>
+                            <td>${data.fairUnder25}</td>
+                            <td>—</td>
+                        </tr>
+                        <tr>
+                            <td>Over 1.5</td>
+                            <td>${(data.probOver15 * 100).toFixed(1)}%</td>
+                            <td>${data.fairOver15}</td>
+                            <td>—</td>
+                        </tr>
+                        <tr>
+                            <td>Under 1.5</td>
+                            <td>${(data.probUnder15 * 100).toFixed(1)}%</td>
+                            <td>${data.fairUnder15}</td>
+                            <td>—</td>
+                        </tr>
+                        <tr>
+                            <td>Over 3.5</td>
+                            <td>${(data.probOver35 * 100).toFixed(1)}%</td>
+                            <td>${data.fairOver35}</td>
+                            <td>—</td>
+                        </tr>
+                        <tr>
+                            <td>Under 3.5</td>
+                            <td>${(data.probUnder35 * 100).toFixed(1)}%</td>
+                            <td>${data.fairUnder35}</td>
+                            <td>—</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
             
             <div class="recommendation-box ${recommendClass}">
                 <h3>📈 RECOMENDACIÓN</h3>
                 ${data.valueOver25 > 5 ? 
-                    `<p>✅ APOSTAR Over 2.5 con cuota ${data.odds.toFixed(2)} (Value: +${data.valueOver25.toFixed(1)}%)</p>
-                     <p class="kelly">💰 Kelly recomendado: ${document.getElementById('kellyValue').textContent} del bankroll</p>` : 
+                    `<p>✅ APOSTAR Over 2.5 con cuota ${data.odds}</p>
+                     <p>Value: +${data.valueOver25.toFixed(1)}%</p>
+                     <p class="kelly">💰 Kelly: ${document.getElementById('kellyValue').textContent} del bankroll</p>` : 
                     data.valueOver25 < -5 ?
-                    `<p>❌ NO APOSTAR Over 2.5 (Value negativo: ${data.valueOver25.toFixed(1)}%)</p>
+                    `<p>❌ NO APOSTAR Over 2.5</p>
+                     <p>Value negativo: ${data.valueOver25.toFixed(1)}%</p>
                      <p>⚡ Considera Under 2.5 si la cuota es buena</p>` :
-                    `<p>⚖️ Over 2.5 sin value significativo (${data.valueOver25.toFixed(1)}%)</p>`
+                    `<p>⚖️ Over 2.5 sin value significativo</p>
+                     <p>Value: ${data.valueOver25.toFixed(1)}%</p>`
                 }
             </div>
             
@@ -292,13 +302,13 @@ function showFullAnalysis(data) {
                 <h3>💡 SUGERENCIAS PARA OTROS MERCADOS</h3>
                 <ul>
                     ${data.probOver15 > 0.75 ? 
-                        `<li>✅ Over 1.5 es muy probable (${(data.probOver15*100).toFixed(1)}%) - Busca cuotas > ${data.fairOver15}</li>` : ''}
+                        `<li>✅ Over 1.5: ${(data.probOver15*100).toFixed(1)}% - Busca cuotas > ${data.fairOver15}</li>` : ''}
                     ${data.probUnder15 > 0.75 ? 
-                        `<li>✅ Under 1.5 es muy probable (${(data.probUnder15*100).toFixed(1)}%) - Busca cuotas > ${data.fairUnder15}</li>` : ''}
+                        `<li>✅ Under 1.5: ${(data.probUnder15*100).toFixed(1)}% - Busca cuotas > ${data.fairUnder15}</li>` : ''}
                     ${data.probOver35 > 0.40 ? 
-                        `<li>⚡ Over 3.5 tiene buena posibilidad (${(data.probOver35*100).toFixed(1)}%) - Ideal para cuotas altas</li>` : ''}
+                        `<li>⚡ Over 3.5: ${(data.probOver35*100).toFixed(1)}% - Ideal para cuotas altas</li>` : ''}
                     ${data.probUnder35 > 0.75 ? 
-                        `<li>✅ Under 3.5 es muy probable (${(data.probUnder35*100).toFixed(1)}%) - Busca cuotas > ${data.fairUnder35}</li>` : ''}
+                        `<li>✅ Under 3.5: ${(data.probUnder35*100).toFixed(1)}% - Busca cuotas > ${data.fairUnder35}</li>` : ''}
                 </ul>
                 ${(!data.probOver15 > 0.75 && !data.probUnder15 > 0.75 && !data.probOver35 > 0.40 && !data.probUnder35 > 0.75) ? 
                     '<p>No hay sugerencias destacadas para otros mercados</p>' : ''}
